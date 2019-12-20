@@ -24,34 +24,52 @@ class ArgumentRecorder(argparse.ArgumentParser):
 
     def __init__(self, *args, **kwargs):
         self.hiddenargs = []    # Has to be before super().__init__ ???
+        self.positional = []
+        self.dependencies = []
         super().__init__(*args, **kwargs)
 
     def add_argument(self, *args, **kwargs):
-        hidden = 'hidden' in kwargs
-        if hidden:
+        hidden = kwargs.get('hidden', False)
+        if 'hidden' in kwargs:
             del kwargs['hidden']
+        dependency = kwargs.get('dependency', False)
+        if 'dependency' in kwargs:
+            del kwargs['dependency']
         action = super().add_argument(*args, **kwargs)
+        if not action.option_strings:
+            self.positional += [ action.dest ]
         if hidden:
             self.hiddenargs += [ action.dest ]
+        if dependency:
+            self.dependencies += [ action.dest ]
 
     def build_comments(self, args, outfile=None):
         comments = ((' ' + outfile + ' ') if outfile else '').center(80, '#') + '\n'
         comments += '# ' + self.prog + '\n'
         for argname, argval in vars(args).items():
             if argname not in self.hiddenargs:
+                if argname not in self.positional:
+                    argspec = '--' + argname + '='
+                else:
+                    argspec = ''
+                if argname in self.dependencies:
+                    prefix = '##   '
+                else:
+                    prefix = '#    '
+
                 if type(argval) == str or (sys.version_info[0] < 3 and type(argval) == unicode):
-                    comments += '#     --' + argname + '="' + argval + '"\n'
+                    comments += prefix + argspec + '"' + argval + '"\n'
                 elif type(argval) == bool:
                     if argval:
-                        comments += '#     --' + argname + '\n'
+                        comments += prefix + argspec + '\n'
                 elif type(argval) == list:
                     for valitem in argval:
                         if type(valitem) == str:
-                            comments += '#     --' + argname + '="' + valitem + '"\n'
+                            comments += prefix + argspec + '"' + valitem + '"\n'
                         else:
-                            comments += '#     --' + argname + '=' + str(valitem) + '\n'
+                            comments += prefix + argspec + str(valitem) + '\n'
                 elif argval is not None:
-                    comments += '#     --' + argname + '=' + str(argval) + '\n'
+                    comments += prefix + argspec + str(argval) + '\n'
 
         return comments
 
