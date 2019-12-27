@@ -19,43 +19,44 @@
 import argparse
 import sys
 import os
+from datetime import datetime
 
 class ArgumentRecorder(argparse.ArgumentParser):
 
     def __init__(self, *args, **kwargs):
-        self.hiddenargs = []    # Has to be before super().__init__ ???
+        self.privateargs = []
         self.positional = []
-        self.dependencies = []
+        self.inputs = []
+        self.outputs = []
+        self.commentfilename   = kwargs.pop('commentfilename',   None)
+        self.commentfileobject = kwargs.pop('commentfileobject', None)
         super().__init__(*args, **kwargs)
 
     def add_argument(self, *args, **kwargs):
-        hidden = kwargs.get('hidden', False)
-        if 'hidden' in kwargs:
-            del kwargs['hidden']
-        dependency = kwargs.get('dependency', False)
-        if 'dependency' in kwargs:
-            del kwargs['dependency']
+        private = kwargs.pop('private', False)
+        output = kwargs.pop('output', False)
+        input = kwargs.pop('input', False)
         action = super().add_argument(*args, **kwargs)
         if not action.option_strings:
             self.positional += [ action.dest ]
-        if hidden:
-            self.hiddenargs += [ action.dest ]
-        if dependency:
-            self.dependencies += [ action.dest ]
+        if private:
+            self.privateargs += [ action.dest ]
+        if input:
+            self.inputs += [ action.dest ]
+        if output:
+            self.outputs += [ action.dest ]
 
     def build_comments(self, args, outfile=None):
         comments = ((' ' + outfile + ' ') if outfile else '').center(80, '#') + '\n'
         comments += '# ' + self.prog + '\n'
         for argname, argval in vars(args).items():
-            if argname not in self.hiddenargs:
+            if argname not in self.privateargs:
                 if argname not in self.positional:
                     argspec = '--' + argname + '='
                 else:
                     argspec = ''
-                if argname in self.dependencies:
-                    prefix = '##   '
-                else:
-                    prefix = '#    '
+
+                prefix = '#    '
 
                 if type(argval) == str or (sys.version_info[0] < 3 and type(argval) == unicode):
                     comments += prefix + argspec + '"' + argval + '"\n'
@@ -73,25 +74,57 @@ class ArgumentRecorder(argparse.ArgumentParser):
 
         return comments
 
-    def write_comments(self, args, outfile=None, infile=None):
+    def write_comments(self, args, filename=None, fileobject=None, readincomments=True):
         incomments = ''
-        if infile:
-            if os.path.isfile(infile):
-                fileobject = open(infile, 'r')
-
-                while True:
-                    line = fileobject.readline()
-                    if line[:1] == '#':
-                        incomments += line
-                    else:
-                        break
-
-                fileobject.close()
-
-        if outfile:
-            fileobject = open(infile, 'w')
+        if not fileobject:
+            if not filename:
+                _fileobject = sys.stderr
+                readincomments = False
+            elif os.path.isfile(filename):
+                _fileobject = open(filename, 'r+')
+            else:
+                _fileobject = open(filename, 'w')
+                readincomments = False
         else:
-            fileobject = sys.stderr
+            _fileobject = fileobject
 
-        fileobject.write(self.build_comments(args))
-        fileobject.write(incomments)
+        if readincomments:
+            while True:
+                line = _fileobject.readline()
+                if line[:1] == '#':
+                    incomments += line
+                else:
+                    break
+
+            _fileobject.seek(0)
+
+        if _fileobject:
+            _fileobject.write(self.build_comments(args))
+            _fileobject.write(incomments)
+
+            if (not fileobject) and filename:
+                _fileobject.close()
+
+    def parse_known_args(self, *args, **kwargs):
+        ret = super().parse_known_args(*args, **kwargs)
+        if self.commentfilename or self.commentfileobject:
+            self.write_comments(ret[0], filename=self.commentfilename, fileobject=self.commentfileobject)
+        return ret
+
+    def replay_required(self, args):
+        earliestoutputtime = None
+        argsdict = vars(args)
+        for output in self.outputs:
+            outfilename = argsdict.get(output, None)
+            outputtime = datetime.utcfromtimestamp(os.path.getmtime(outfilename)) if os.path.isfile(outfilename) else None
+            if (not earliestoutputtime) or outputtime < earliestoutputtime:
+                earliestoutputtime = outputtime
+
+        latestinputtime = None
+        for input in self.inputs:
+            infilename = argsdict.get(input, None)
+            inputtime = datetime.utcfromtimestamp(os.path.getmtime(infilename)) if os.path.isfile(infilename) else None
+            if (not latestinputtime) or inputtime > latestinputtime:
+                latestinputtime = inputtime
+
+        return latestinputtime is not None and ((not earliestoutputtime) or latestinputtime > earliestoutputtime)

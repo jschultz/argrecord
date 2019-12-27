@@ -205,16 +205,10 @@ def argreplay(input_file, force, dry_run, edit,
                         print("Executing: " + cmd + ' ' + ' '.join(arglist), file=sys.stderr)
 
                     if not dry_run:
-                        if not process:
-                            process = subprocess.Popen([cmd] + arglist,
-                                                       stdout=subprocess.PIPE if len(pipestack) else sys.stdout,
-                                                       stdin=sys.stdin,
-                                                       stderr=sys.stderr)
-                        else:
-                            process = subprocess.Popen([cmd] + arglist,
-                                                       stdout=subprocess.PIPE if len(pipestack) else sys.stdout,
-                                                       stdin=process.stdout,
-                                                       stderr=sys.stderr)
+                        process = subprocess.Popen([cmd] + arglist,
+                                                    stdout=subprocess.PIPE if len(pipestack) else sys.stdout,
+                                                    stdin=process.stdout if process else stdin=sys.stdin,
+                                                    stderr=sys.stderr)
                 if not dry_run:
                     process.wait()
                     if process.returncode:
