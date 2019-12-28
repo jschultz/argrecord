@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function
 import argparse
+from argrecord import ArgumentReplay
 import os
 import sys
 import re
@@ -31,14 +31,13 @@ if gui:
     try:
         import gooey
     except ImportError:
-        raise ImportError("You must install Gooey to use --gui")
+        raise ImportError("You must install Gooey to use --gui\nTry 'pip install gooey'")
 
 def add_arguments(parser):
     parser.description = "Replay command trails left by argrecord."
 
     if not gui: # Add --gui argument so it appears in command usage.
-        parser.add_argument(      '--gui', action='store_true',
-                                 help='Open a window where arguments can be edited.')
+        parser.add_argument('--gui', action='store_true', help='Open a window where arguments can be edited.')
 
     replaygroup = parser.add_argument_group('Replay')
     if gui:
@@ -77,11 +76,6 @@ else:
 def argreplay(input_file, force, dry_run, edit,
               verbosity, depth, remove,
               extraargs=[], substitute={}, **dummy):
-    headerregexp  = re.compile(r"^#+(?:\s+(?P<file>.+)\s+)?#+$", re.UNICODE)
-    cmdregexp   = re.compile(r"^#\s+(?P<cmd>[\w\.-]+)", re.UNICODE)
-    argregexp   = re.compile(r"^#(?P<dependency>#)?\s+(?:--(?P<name>[\w-]+)=)?(?:(?P<quote>\"?)(?P<value>.+)(?P=quote))?", re.UNICODE)
-    piperegexp  = re.compile(r"^#+$", re.UNICODE)
-    substregexp = re.compile(r"(\$\{?(\w+)\}?)", re.UNICODE)
 
     if not isinstance(input_file, list):    # Gooey can't handle input_file as list
         input_file = [input_file]
@@ -91,15 +85,8 @@ def argreplay(input_file, force, dry_run, edit,
             print("Replaying " + infilename, file=sys.stderr)
 
         # Read comments at start of infile.
-        infile = open(infilename, 'r')
-        comments = []
-        while True:
-            line = infile.readline()
-            if line[:1] == '#':
-                comments.append(line)
-            else:
-                infile.close()
-                break
+        cmd = ArgumentReplay.read_comments(infilename)
+        print(cmd)
 
         if remove:
             os.remove(infilename)
@@ -207,7 +194,7 @@ def argreplay(input_file, force, dry_run, edit,
                     if not dry_run:
                         process = subprocess.Popen([cmd] + arglist,
                                                     stdout=subprocess.PIPE if len(pipestack) else sys.stdout,
-                                                    stdin=process.stdout if process else stdin=sys.stdin,
+                                                    stdin=process.stdout if process else sys.stdin,
                                                     stderr=sys.stderr)
                 if not dry_run:
                     process.wait()
