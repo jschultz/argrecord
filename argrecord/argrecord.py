@@ -22,6 +22,27 @@ import os
 from datetime import datetime
 import re
 
+class ArgumentHelper:
+
+    def earliest_timestamp(filelist):
+        result = None
+        for filename in filelist:
+            timestamp = datetime.utcfromtimestamp(os.path.getmtime(filename)) if os.path.isfile(filename) else None
+            if (not result) or timestamp < result:
+                result = timestamp
+
+        return result
+
+    def latest_timestamp(filelist):
+        result = None
+        for filename in filelist:
+            timestamp = datetime.utcfromtimestamp(os.path.getmtime(filename)) if os.path.isfile(filename) else None
+            if (not result) or timestamp > result:
+                result = timestamp
+
+        return result
+
+
 class ArgumentRecorder(argparse.ArgumentParser):
 
     def add_argument(self, *args, **kwargs):
@@ -44,7 +65,7 @@ class ArgumentRecorder(argparse.ArgumentParser):
                 else:
                     argspec = ''
 
-                prefix = '#    '
+                prefix = '#' + ('<' if action.input else '>' if action.output else ' ') + '   '
 
                 if type(argval) == str or (sys.version_info[0] < 3 and type(argval) == unicode):
                     comments += prefix + argspec + ' "' + argval + '"\n'
@@ -68,6 +89,7 @@ class ArgumentRecorder(argparse.ArgumentParser):
             if os.path.isfile(dest) and prepend:
                 fileobject = open(dest, 'r+')
             else:
+                prepend = False
                 fileobject = open(dest, 'w')
         elif dest:
             fileobject = dest
@@ -93,22 +115,9 @@ class ArgumentRecorder(argparse.ArgumentParser):
             fileobject.close()
 
     def replay_required(self, args):
-        earliestoutputtime = None
         argsdict = vars(args)
-        for outputaction in self._actions:
-            if outputaction.output:
-                outfilename = argsdict.get(outputaction.dest, None)
-                outputtime = datetime.utcfromtimestamp(os.path.getmtime(outfilename)) if os.path.isfile(outfilename) else None
-                if (not earliestoutputtime) or outputtime < earliestoutputtime:
-                    earliestoutputtime = outputtime
-
-        latestinputtime = None
-        for inputaction in self._actions:
-            if inputaction.input:
-                infilename = argsdict.get(inputaction.dest, None)
-                inputtime = datetime.utcfromtimestamp(os.path.getmtime(infilename)) if os.path.isfile(infilename) else None
-                if (not latestinputtime) or inputtime > latestinputtime:
-                    latestinputtime = inputtime
+        earliestoutputtime = ArgumentHelper.earliest_timestamp([argsdict.get(action.dest) for action in self._actions if action.output])
+        latestinputtime    = ArgumentHelper.latest_timestamp  ([argsdict.get(action.dest) for action in self._actions if action.input])
 
         return latestinputtime is not None and ((not earliestoutputtime) or latestinputtime > earliestoutputtime)
 
@@ -116,10 +125,14 @@ class ArgumentReplay():
 
     headregexp = re.compile(r"^#+(?:\s+(?P<file>.+)\s+)?#+$", re.UNICODE)
     cmdregexp  = re.compile(r"^#\s+(?P<cmd>[\w\.-]+)", re.UNICODE)
-    argregexp  = re.compile(r"^#\s+(?P<option_string>-[\w-]*)?(?:\s*(?P<quote>\"?)(?P<value>.+)(?P=quote))?", re.UNICODE)
+    argregexp  = re.compile(r"^#(?P<dependency>[<> ])\s*(?P<option_string>-[\w-]*)?(?:\s*(?P<quote>\"?)(?P<value>.+)(?P=quote))?", re.UNICODE)
     substexp   = re.compile(r"(\$\{?(\w+)\}?)", re.UNICODE)
 
-    def read_comments(source):
+    def __init__(self, source):
+        self.command = []
+        self.inputs = []
+        self.outputs = []
+
         if isinstance(source, str):
             fileobject = open(source, 'r')
         elif source:
@@ -129,15 +142,16 @@ class ArgumentReplay():
 
         line = fileobject.readline()
         headmatch = ArgumentReplay.headregexp.match(line)
-        if headmatch:
-            line = fileobject.readline()
+        if not headmatch:
+            return
+
+        line = fileobject.readline()
         cmdmatch = ArgumentReplay.cmdregexp.match(line)
         if cmdmatch:
-            cmd = cmdmatch.group('cmd')
+            self.command = [cmdmatch.group('cmd')]
         else:
             raise RuntimeError("Unrecognised input line: " + line)
 
-        result = [cmd]
         while True:
             line = fileobject.readline()
 
@@ -145,10 +159,16 @@ class ArgumentReplay():
             if not argmatch:
                 break
             else:
+                dependency = argmatch.group('dependency')
                 option_string  = argmatch.group('option_string')
                 value = argmatch.group('value')
 
                 if value:
+                    if dependency == '<':
+                        self.inputs.append(value)
+                    elif dependency == '>':
+                        self.outputs.append(value)
+
                     subs = ArgumentReplay.substexp.findall(value)
                     for sub in subs:
                         subname = sub[1]
@@ -159,9 +179,12 @@ class ArgumentReplay():
                         value = value.replace(sub[0], subval)
 
                 if option_string:
-                    print(option_string)
-                    result.append(option_string)
+                    self.command.append(option_string)
                 if value:
-                    result.append(value)
+                    self.command.append(value)
 
-        return result
+    def earliest_output():
+        return ArgumentHelper.earliest_timestamp(self.outputs)
+
+    def latest_input():
+        return ArgumentHelper.latest_timestamp(self.inputs)

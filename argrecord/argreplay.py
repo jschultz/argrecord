@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-from argrecord import ArgumentReplay
+from argrecord import ArgumentReplay, ArgumentHelper
 import os
 import sys
 import re
@@ -84,128 +84,69 @@ def argreplay(input_file, force, dry_run, edit,
         if verbosity >= 1:
             print("Replaying " + infilename, file=sys.stderr)
 
-        # Read comments at start of infile.
-        cmd = ArgumentReplay.read_comments(infilename)
-        print(cmd)
-
-        if remove:
-            os.remove(infilename)
+        infile = open(infilename, 'r')
 
         curdepth = 0
         replaystack = []
-        filematch = False
-        while len(comments) and not filematch:
-            commentline = comments.pop(0)
-            filematch = headerregexp.match(commentline)
-        while filematch and len(comments):
-            filename  = filematch.group('file')
-            pipestack = []
-            dependencylist = []
-            outfile = None
-            pipematch = True
-            while pipematch and len(comments):
-                commentline = comments.pop(0)
-                cmdmatch = cmdregexp.match(commentline)
-                if cmdmatch:
-                    cmd = cmdmatch.group('cmd')
-                else:
-                    break
+        replay = ArgumentReplay(infile)
+        while replay.command:
+            pipestack = [replay.command]
+            outputs = replay.outputs
+            while replay.command and replay.inputs == []:
+                replay = ArgumentReplay(infile)
+                if replay.command:
+                    pipestack.append(replay.command)
 
-                arglist = []
-                lastargname = ''
-                commentline = comments.pop(0) if len(comments) else None
-                argmatch = argregexp.match(commentline) if commentline else None
-                while argmatch:
-                    argdependency = argmatch.group('dependency')
-                    argname       = argmatch.group('name')
-                    argvalue      = argmatch.group('value')
-                    print(argdependency, argname, argvalue)
-
-                    if argvalue:
-                        argvalsubs = substregexp.findall(argvalue)
-                        for argvalsub in argvalsubs:
-                            subname = argvalsub[1]
-                            subval = substitute.get(subname)
-                            if subval is None:
-                                raise RuntimeError("Mising substitution: " + subname)
-
-                            argvalue = argvalue.replace(argvalsub[0], subval)
-
-                    if argdependency:
-                        dependencylist.append(argvalue)
-
-                    if argname and argname != lastargname:
-                        arglist.append('--' + argname)
-                        lastargname = argname
-
-                    if argvalue is not None:
-                        arglist.append(argvalue)
-
-                    commentline = comments.pop(0) if len(comments) else None
-                    argmatch = argregexp.match(commentline) if commentline else None
-
-                pipestack.append((cmd, arglist + extraargs))
-                pipematch = piperegexp.match(commentline) if commentline else None
-
-            replaystack.append((pipestack, dependencylist, filename))
+            inputs = replay.inputs
+            replaystack.append((pipestack, inputs, outputs))
 
             curdepth += 1
-            if depth and curdepth == depth:
+            if depth and curdepth >= depth:
                 break
 
-            filematch = headerregexp.match(commentline) if commentline else None
-
+            if replay.command:
+                replay = ArgumentReplay(infile)
 
         if replaystack:
-            (pipestack, dependencylist, outfilename) = replaystack.pop()
+            (pipestack, inputs, outputs) = replaystack.pop()
         else:
             pipestack = None
 
         execute = force
         while pipestack:
-            if not execute:
-                if not outfilename or not os.path.isfile(outfilename):
-                    execute = True
-                else:
-                    outfilestamp = datetime.utcfromtimestamp(os.path.getmtime(outfilename))
-                    if not dependencylist:
-                        execute = True
-                    for dependency in dependencylist:
-                        if not os.path.isfile(dependency):
-                            raise RuntimeError("Missing dependency: " + dependency)
-                        dependencystamp = datetime.utcfromtimestamp(os.path.getmtime(dependency))
-                        if dependencystamp > outfilestamp:
-                            execute = True
-                            break
+            latestinput    = ArgumentHelper.latest_timestamp(inputs)
+            earliestoutput = ArgumentHelper.earliest_timestamp(outputs)
+            execute = execute or (latestinput is not None and ((not earliestoutput) or latestinput > earliestoutput))
 
             if execute:
+                if remove:
+                    os.remove(infilename)
+
                 process = None
                 while len(pipestack):
-                    (cmd, arglist) = pipestack.pop()
-                    if len(pipestack) == 0 and '--outfile' not in arglist and outfilename:
-                        arglist = arglist + ['--outfile', outfilename]
+                    command = pipestack.pop()
 
                     if edit:
                         arglist += ['--gui']
 
                     if verbosity >= 1:
-                        print("Executing: " + cmd + ' ' + ' '.join(arglist), file=sys.stderr)
+                        print("Executing: " + ' '.join(command), file=sys.stderr)
 
                     if not dry_run:
-                        process = subprocess.Popen([cmd] + arglist,
-                                                    stdout=subprocess.PIPE if len(pipestack) else sys.stdout,
-                                                    stdin=process.stdout if process else sys.stdin,
-                                                    stderr=sys.stderr)
+                        process = subprocess.Popen(command,
+                                                   stdout=subprocess.PIPE if len(pipestack) else sys.stdout,
+                                                   stdin=process.stdout if process else sys.stdin,
+                                                   stderr=sys.stderr)
                 if not dry_run:
                     process.wait()
                     if process.returncode:
                         raise RuntimeError("Error running script.")
-            else:
-                if verbosity >= 2:
-                    print("File not replayed: " + outfilename, file=sys.stderr)
+                else:
+                    if verbosity >= 2:
+                        print("File not replayed: " + outfilename, file=sys.stderr)
 
             if replaystack:
-                (pipestack, dependencylist, outfilename) = replaystack.pop()
+                (pipestack, inputs, outputs) = replaystack.pop()
             else:
                 pipestack = None
 
