@@ -24,6 +24,7 @@ import re
 
 class ArgumentHelper:
 
+    @staticmethod
     def earliest_timestamp(filelist):
         result = None
         for filename in filelist:
@@ -33,6 +34,7 @@ class ArgumentHelper:
 
         return result
 
+    @staticmethod
     def latest_timestamp(filelist):
         result = None
         for filename in filelist:
@@ -128,7 +130,7 @@ class ArgumentReplay():
     argregexp  = re.compile(r"^#(?P<dependency>[<> ])\s*(?P<option_string>-[\w-]*)?(?:\s*(?P<quote>\"?)(?P<value>.+)(?P=quote))?", re.UNICODE)
     substexp   = re.compile(r"(\$\{?(\w+)\}?)", re.UNICODE)
 
-    def __init__(self, source):
+    def __init__(self, source, substitute=None):
         self.command = []
         self.inputs = []
         self.outputs = []
@@ -141,11 +143,11 @@ class ArgumentReplay():
             fileobject = sys.stdin
 
         line = fileobject.readline()
-        headmatch = ArgumentReplay.headregexp.match(line)
-        if not headmatch:
+        if not line:
             return
-
-        line = fileobject.readline()
+        headmatch = ArgumentReplay.headregexp.match(line)
+        if headmatch:
+            line = fileobject.readline()
         cmdmatch = ArgumentReplay.cmdregexp.match(line)
         if cmdmatch:
             self.command = [cmdmatch.group('cmd')]

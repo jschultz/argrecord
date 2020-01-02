@@ -16,8 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
 import argparse
-from argrecord import ArgumentReplay, ArgumentHelper
+from argrecord.argrecord import ArgumentReplay, ArgumentHelper
 import os
 import sys
 import re
@@ -88,12 +89,12 @@ def argreplay(input_file, force, dry_run, edit,
 
         curdepth = 0
         replaystack = []
-        replay = ArgumentReplay(infile)
+        replay = ArgumentReplay(infile, substitute)
         while replay.command:
             pipestack = [replay.command]
             outputs = replay.outputs
             while replay.command and replay.inputs == []:
-                replay = ArgumentReplay(infile)
+                replay = ArgumentReplay(infile, substitute)
                 if replay.command:
                     pipestack.append(replay.command)
 
@@ -105,7 +106,7 @@ def argreplay(input_file, force, dry_run, edit,
                 break
 
             if replay.command:
-                replay = ArgumentReplay(infile)
+                replay = ArgumentReplay(infile, substitute)
 
         if replaystack:
             (pipestack, inputs, outputs) = replaystack.pop()
@@ -141,9 +142,6 @@ def argreplay(input_file, force, dry_run, edit,
                     process.wait()
                     if process.returncode:
                         raise RuntimeError("Error running script.")
-                else:
-                    if verbosity >= 2:
-                        print("File not replayed: " + outfilename, file=sys.stderr)
 
             if replaystack:
                 (pipestack, inputs, outputs) = replaystack.pop()
