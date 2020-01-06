@@ -18,7 +18,7 @@
 
 from __future__ import print_function
 import argparse
-from argrecord.argrecord import ArgumentReplay, ArgumentHelper
+from argrecord import ArgumentReplay, ArgumentHelper
 import os
 import sys
 import re
@@ -131,7 +131,7 @@ def argreplay(input_file, force, dry_run, edit,
                         arglist += ['--gui']
 
                     if verbosity >= 1:
-                        print("Executing: " + ' '.join(command), file=sys.stderr)
+                        print("Executing: " + ' '.join([item if ' ' not in item else '"' + item + '"' for item in command]), file=sys.stderr)
 
                     if not dry_run:
                         process = subprocess.Popen(command,

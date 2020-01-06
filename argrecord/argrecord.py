@@ -19,6 +19,7 @@
 import argparse
 import sys
 import os
+import shutil
 from datetime import datetime
 import re
 
@@ -44,6 +45,36 @@ class ArgumentHelper:
 
         return result
 
+    @staticmethod
+    def read_comments(source):
+        comments = ''
+        if isinstance(source, str):
+            fileobject = open(source, 'r')
+        elif source:
+            fileobject = source
+        else:
+            fileobject = sys.stdilinen
+
+        while True:
+            if fileobject.seekable():
+                pos = fileobject.tell()
+                line = fileobject.readline()
+                if line[0] == '#':
+                    comments += line
+                else:
+                    fileobject.seek(pos)
+                    break
+            else:
+                peek = fileobject.peek(1)
+                if peek == '#':
+                    comments += fileobject.readline()
+                else:
+                    break
+
+        if isinstance(source, str):
+            fileobject.close()
+
+        return comments
 
 class ArgumentRecorder(argparse.ArgumentParser):
 
@@ -80,40 +111,51 @@ class ArgumentRecorder(argparse.ArgumentParser):
                             comments += prefix + argspec + ' "' + valitem + '"\n'
                         else:
                             comments += prefix + argspec + ' ' + str(valitem) + '\n'
+                        argspec = ' ' * len(argspec)
                 elif argval is not None:
                     comments += prefix + argspec + ' ' + str(argval) + '\n'
 
         return comments
 
-    def write_comments(self, args, dest, prepend=True):
-        incomments = ''
+    def write_comments(self, args, dest, outfile=None, incomments=None, prepend=False, backup=None):
+        prependcomments = ''
         if isinstance(dest, str):
-            if os.path.isfile(dest) and prepend:
-                fileobject = open(dest, 'r+')
+            if os.path.isfile(dest):
+                if backup:
+                    shutil.move(dest, dest + backup)
+                    if prepend:
+                        fileobject = open(dest + backup, 'r')
+                elif prepend:
+                    fileobject = open(dest, 'r')
             else:
                 prepend = False
-                fileobject = open(dest, 'w')
         elif dest:
             fileobject = dest
         else:
-            fileobject = sys.stderr
+            fileobject = sys.stdout
             prepend = False
 
         if prepend:
             while True:
                 line = fileobject.readline()
                 if line[:1] == '#':
-                    incomments += line
+                    prependcomments += line
                 else:
                     break
 
-            fileobject.seek(0)
+            if isinstance(dest, str):
+                fileobject.close()
 
-        fileobject.write(self.build_comments(args))
+        if isinstance(dest, str):
+            fileobject = open(dest, 'w')
+
+        fileobject.write(self.build_comments(args, outfile=outfile))
         if prepend:
+            fileobject.write(prependcomments)
+        if incomments:
             fileobject.write(incomments)
 
-        if dest:
+        if isinstance(dest, str):
             fileobject.close()
 
     def replay_required(self, args):
