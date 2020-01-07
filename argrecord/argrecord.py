@@ -22,6 +22,7 @@ import os
 import shutil
 from datetime import datetime
 import re
+import io
 
 class ArgumentHelper:
 
@@ -56,18 +57,18 @@ class ArgumentHelper:
             fileobject = sys.stdilinen
 
         while True:
-            if fileobject.seekable():
-                pos = fileobject.tell()
-                line = fileobject.readline()
-                if line[0] == '#':
-                    comments += line
-                else:
-                    fileobject.seek(pos)
-                    break
-            else:
+            #if fileobject.seekable():
+                #pos = fileobject.tell()
+                #line = fileobject.readline()
+                #if line[0] == '#':
+                    #comments += line
+                #else:
+                    #fileobject.seek(pos)
+                    #break
+            #else:
                 peek = fileobject.peek(1)
-                if peek == '#':
-                    comments += fileobject.readline()
+                if peek[0] == '#':
+                    comments += next(fileobject)
                 else:
                     break
 
@@ -137,7 +138,7 @@ class ArgumentRecorder(argparse.ArgumentParser):
 
         if prepend:
             while True:
-                line = fileobject.readline()
+                line = next(fileobject)
                 if line[:1] == '#':
                     prependcomments += line
                 else:
@@ -184,12 +185,12 @@ class ArgumentReplay():
         else:
             fileobject = sys.stdin
 
-        line = fileobject.readline()
+        line = next(fileobject, None)
         if not line:
             return
         headmatch = ArgumentReplay.headregexp.match(line)
         if headmatch:
-            line = fileobject.readline()
+            line = next(fileobject, None)
         cmdmatch = ArgumentReplay.cmdregexp.match(line)
         if cmdmatch:
             self.command = [cmdmatch.group('cmd')]
@@ -197,7 +198,7 @@ class ArgumentReplay():
             raise RuntimeError("Unrecognised input line: " + line)
 
         while True:
-            line = fileobject.readline()
+            line = next(fileobject, None)
 
             argmatch = ArgumentReplay.argregexp.match(line) if line else None
             if not argmatch:

@@ -134,7 +134,7 @@ def argreplay(input_file, force, dry_run, edit,
                         print("Executing: " + ' '.join([item if ' ' not in item else '"' + item + '"' for item in command]), file=sys.stderr)
 
                     if not dry_run:
-                        process = subprocess.Popen(command,
+                        process = subprocess.Popen(command, text=True,
                                                    stdout=subprocess.PIPE if len(pipestack) else sys.stdout,
                                                    stdin=process.stdout if process else sys.stdin,
                                                    stderr=sys.stderr)
