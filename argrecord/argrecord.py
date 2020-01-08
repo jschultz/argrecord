@@ -57,15 +57,15 @@ class ArgumentHelper:
             fileobject = sys.stdilinen
 
         while True:
-            #if fileobject.seekable():
-                #pos = fileobject.tell()
-                #line = fileobject.readline()
-                #if line[0] == '#':
-                    #comments += line
-                #else:
-                    #fileobject.seek(pos)
-                    #break
-            #else:
+            if hasattr(fileobject, 'seek'):
+                pos = fileobject.tell()
+                line = fileobject.readline()
+                if line[0] == '#':
+                    comments += line
+                else:
+                    fileobject.seek(pos)
+                    break
+            else:
                 peek = fileobject.peek(1)
                 if peek[0] == '#':
                     comments += next(fileobject)
@@ -76,6 +76,10 @@ class ArgumentHelper:
             fileobject.close()
 
         return comments
+
+    @staticmethod
+    def separator(header=None):
+        return ((' ' + header + ' ') if header else '').center(80, '#') + '\n'
 
 class ArgumentRecorder(argparse.ArgumentParser):
 
@@ -89,7 +93,7 @@ class ArgumentRecorder(argparse.ArgumentParser):
         action.output = output
 
     def build_comments(self, args, outfile=None):
-        comments = ((' ' + outfile + ' ') if outfile else '').center(80, '#') + '\n'
+        comments = ArgumentHelper.separator(outfile)
         comments += '# ' + self.prog + '\n'
         for argname, argval in vars(args).items():
             action = next((action for action in self._actions if action.dest == argname), None)
@@ -118,29 +122,29 @@ class ArgumentRecorder(argparse.ArgumentParser):
 
         return comments
 
-    def write_comments(self, args, dest, outfile=None, incomments=None, prepend=False, backup=None):
-        prependcomments = ''
+    def write_comments(self, args, dest, outfile=None, incomments=None, append=False, backup=None):
+        appendcomments = ''
         if isinstance(dest, str):
             if os.path.isfile(dest):
                 if backup:
                     shutil.move(dest, dest + backup)
-                    if prepend:
+                    if append:
                         fileobject = open(dest + backup, 'r')
-                elif prepend:
+                elif append:
                     fileobject = open(dest, 'r')
             else:
-                prepend = False
+                append = False
         elif dest:
             fileobject = dest
         else:
             fileobject = sys.stdout
-            prepend = False
+            append = False
 
-        if prepend:
+        if append:
             while True:
                 line = next(fileobject)
                 if line[:1] == '#':
-                    prependcomments += line
+                    appendcomments += line
                 else:
                     break
 
@@ -151,8 +155,8 @@ class ArgumentRecorder(argparse.ArgumentParser):
             fileobject = open(dest, 'w')
 
         fileobject.write(self.build_comments(args, outfile=outfile))
-        if prepend:
-            fileobject.write(prependcomments)
+        if append:
+            fileobject.write(appendcomments)
         if incomments:
             fileobject.write(incomments)
 

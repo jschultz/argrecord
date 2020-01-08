@@ -2,22 +2,21 @@ from setuptools import setup
 
 setup(
     name = "argrecord",
+    version = "0.1",
+    author = "Jonathan Schultz",
+    author_email = "jonathan@schultz.la",
+    license = "GPL3",
     packages = ["argrecord"],
     install_requires = ["argparse"],
     entry_points = {
         "console_scripts": ['argreplay = argrecord.argreplay:main']
         },
     include_package_data=True,
-    version = "0.1",
     description = "",
-    author = "Jonathan Schultz",
-    author_email = "jonathan@schultz.la",
-    license = "GPL3",
     classifiers = [
-        "Development Status :: 4 - Beta",
-        "License :: OSI Approved :: GPL3 License",
-        "Programming Language :: Python :: 2.7",
+        "Development Status :: 3 - Alpha",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Programming Language :: Python :: 3",
-        'Intended Audience :: Developers',
+        "Intended Audience :: Developers",
         ],
     )
