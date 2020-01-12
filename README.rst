@@ -25,7 +25,7 @@ Simply replace ``argparse`` with ``argrecord`` and the class ``ArgumentParser`` 
 
 The ``ArgumentRecorder`` class provides three new methods:
 
-``build_comments`` returns a multi-line string that represents the arguments provided to the parser. We call these comments because they are designed to be included as the header of an output file and treated as a comment by whatever program subsequently treats the output file.
+``build_comments`` returns a multi-line string that represents the current script invocation; that is, the name of the script and the list arguments to it. We call these comments because they are designed to be included as the header of an output file and treated as a comment by whichever program subsequently treats the output file.
 
 ``write_comments`` writes the comments to a file. The file can be specified either as a filename or a file object of an output file. Additional arguments specify whether additional comments (for example from an input file) or comments in the already existing file should be appended to the comments generated from the argument parser, and whether an already existing file should be backed by by appending a suffix to its name.
 
@@ -38,5 +38,30 @@ The method ``add_argument`` takes three additional arguments.  ``input`` and ``o
 Replaying script arguments
 --------------------------
 
-Run the script ``argreplay`` to re-run the commands that produced an output or logfile.
+Default behaviour
+.................
 
+Run the script ``argreplay`` to re-run the commands that produced a logfile (or initial section of an output file). The default behaviour of ``argreplay`` is to read a series of *recipes* from a logfile, detecting the name of the script and the input and output file(s) of each. Once it has read all the recipes, it processes them in reverse order. When it finds a command that needs to be re-run (because one or more of its input files is younger than one or more of its output files) it re-runs that command, before proceeding to the previous recipe. When a command is re-run, it typically creates a new output file that is an input file for the previous recipe, so that will in turn need to be re-run. The process continues until all the recipes have been processed, or a command returns an error.
+
+Pipes
+.....
+If ``argreplay`` encounters a command with no input file(s), it assumes that the input was a pipe from the next command in the logfile. This means that the input(s) from the next command are treated as input(s) for the sequence of commands. Arbitrarily many commands may be piped together in this way.
+
+Variable substitution
+.....................
+A recipe may include variables in its command arguments. For example,
+
+    --year ${year}
+
+In this case, ``argreplay`` must be given an argument ``--substitute`` that contains the variables to be substituted and the values with which to substitute them, with a colon as separator. For example,
+
+    argreplay --substitute year:2019 ....
+
+Other options
+.............
+
+``--dry-run`` simply prints the commands that would be run. Note that since the command is not actually run, output files are not touched and subsequent commands that would be run will not be listed.
+
+``--force`` means that the commands are run regardless of the timestamps on input and output file(s).
+
+``depth`` tells ``argreplay`` how many recipes to read. The default is to read all the recipes in the logfile.
