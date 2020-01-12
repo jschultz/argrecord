@@ -1,7 +1,7 @@
 argrecord
 =========
 
-An extension to argparse to automate the generation of logfiles and self-describing output files, and provide a Make-like functionality to re-run a script based on automatically produced logfiles.
+An extension to argparse to automate the generation of logfiles and self-describing output files, and provide a Make-like functionality to re-run a script based on those automatically generated logfiles.
 
 Introduction
 ============
@@ -32,7 +32,7 @@ Appending multiple sets of commments in a single logfile or output file allows t
 
 ``replay_required`` returns ``True`` or ``False`` indicating whether the script needs to be re-run. This is calculated by determining whether any of the input files to the script are newer than any of the currently existing output files.
 
-The method ``add_argument`` takes three additional arguments.  ``input`` and ``output`` indicate whether the argument represents a filename that is an input or output of the script. ``private`` indicates that the argument should not be included in the list of comments.
+The method ``add_argument`` takes three additional arguments.  ``input`` and ``output`` indicate whether the argument represents the name of a file that is an input or output of the script. ``private`` indicates that the argument should not be included in the comments.
 
 Replaying script arguments
 --------------------------
@@ -40,11 +40,11 @@ Replaying script arguments
 Default behaviour
 .................
 
-Run the script ``argreplay`` to re-run the commands that produced a logfile (or initial section of an output file). The default behaviour of ``argreplay`` is to read a series of *recipes* from a logfile, detecting the name of the script and the input and output file(s) of each. Once it has read all the recipes, it processes them in reverse order. When it finds a command that needs to be re-run (because one or more of its input files is younger than one or more of its output files) it re-runs that command, before proceeding to the previous recipe. When a command is re-run, it typically creates a new output file that is an input file for the previous recipe, so that will in turn need to be re-run. The process continues until all the recipes have been processed, or a command returns an error.
+Run the script ``argreplay`` to re-run the commands that produced a logfile (or initial section of an output file). The default behaviour is to read a series of *recipes* from a logfile, detecting the name of the script and the input and output file(s) of each. Once it has read all the recipes, it processes them in reverse order. When it finds a command that needs to be re-run (because one or more of its input files is younger than one or more of its output files) it re-runs that command, then proceeds to the previous recipe. When a command is re-run, it typically creates a new output file that is an input file for the previous recipe, so that will in turn need to be re-run. The process continues until all the recipes have been processed, or a command returns an error.
 
 Pipes
 .....
-If ``argreplay`` encounters a command with no input file(s), it assumes that the input was a pipe from the next command in the logfile. This means that the input(s) from the next command are treated as input(s) for the sequence of commands. Arbitrarily many commands may be piped together in this way.
+If ``argreplay`` encounters a recipe with no input file(s), it assumes that the input was a pipe from the following recipe, and treats the two recipes together as a single entity. Arbitrarily many commands may be piped together in this way.
 
 Variable substitution
 .....................
@@ -52,9 +52,7 @@ A recipe may include variables in its command arguments. For example,
 
     --year ${year}
 
-In this case, ``argreplay`` must be given an argument ``--substitute`` that contains the variables to be substituted and the values with which to substitute them, with a colon as separator. For example,
-
-    argreplay --substitute year:2019 ....
+In this case, ``argreplay`` must be given an argument ``--substitute`` that contains the variables to be substituted and the values with which to substitute them, with a colon as separator. For example, ``argreplay --substitute year:2019 ....``
 
 Other options
 .............
@@ -64,3 +62,7 @@ Other options
 ``--force`` means that the commands are run regardless of the timestamps on input and output file(s).
 
 ``--depth`` indicates how many recipes to read from a logfile. The default is to read all the recipes.
+
+``--remove`` means that the logfile should be removed after it has been read but before any commands are run. This can help prevent the logfile growing too long if the commands will cause it to be extended.
+
+``--gui`` causes `Gooey <https://pypi.org/project/Gooey/>`_ to be invoked if it is available.

@@ -142,8 +142,8 @@ class ArgumentRecorder(argparse.ArgumentParser):
 
         if append:
             while True:
-                line = next(fileobject)
-                if line[:1] == '#':
+                line = next(fileobject, None)
+                if line and line[:1] == '#':
                     appendcomments += line
                 else:
                     break
@@ -173,7 +173,7 @@ class ArgumentRecorder(argparse.ArgumentParser):
 class ArgumentReplay():
 
     headregexp = re.compile(r"^#+(?:\s+(?P<file>.+)\s+)?#+$", re.UNICODE)
-    cmdregexp  = re.compile(r"^#\s+(?P<cmd>[\w\.-]+)", re.UNICODE)
+    cmdregexp  = re.compile(r"^#\s+(?P<cmd>[\S]+)", re.UNICODE)
     argregexp  = re.compile(r"^#(?P<dependency>[<> ])\s*(?P<option_string>-[\w-]*)?(?:\s*(?P<quote>\"?)(?P<value>.+)(?P=quote))?", re.UNICODE)
     substexp   = re.compile(r"(\$\{?(\w+)\}?)", re.UNICODE)
 
