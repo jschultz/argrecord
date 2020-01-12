@@ -1,8 +1,8 @@
 argrecord
+=========
 
-An extension to argparse to automate the generation of logfiles and self-describing files and provide a Make-like functionality to re-run a script.
+An extension to argparse to automate the generation of logfiles and self-describing output files, and provide a Make-like functionality to re-run a script based on automatically produced logfiles.
 
-============
 Introduction
 ============
 
@@ -14,7 +14,6 @@ It works with Python 3.
 
 The source code can be found at `argrecord <https://github.com/jschultz/argrecord/>`_.
 
-=====
 Usage
 =====
 
@@ -64,4 +63,4 @@ Other options
 
 ``--force`` means that the commands are run regardless of the timestamps on input and output file(s).
 
-``depth`` tells ``argreplay`` how many recipes to read. The default is to read all the recipes in the logfile.
+``--depth`` indicates how many recipes to read from a logfile. The default is to read all the recipes.
