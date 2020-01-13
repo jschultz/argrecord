@@ -1,7 +1,14 @@
 from setuptools import setup
 
+def readme():
+    with open('README.rst') as f:
+        return f.read()
+
 setup(
     name = "argrecord",
+    description = "Automates logfile and self-describing output file generation; provides Make-like functionality to re-run a script.",
+    long_description=readme(),
+    long_description_content_type = "text/x-rst",
     version = "0.1",
     author = "Jonathan Schultz",
     author_email = "jonathan@schultz.la",
@@ -12,7 +19,6 @@ setup(
         "console_scripts": ['argreplay = argrecord.argreplay:main']
         },
     include_package_data=True,
-    description = "",
     classifiers = [
         "Development Status :: 3 - Alpha",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
