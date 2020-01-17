@@ -23,6 +23,7 @@ import shutil
 from datetime import datetime
 import re
 import io
+from more_itertools import peekable
 
 class ArgumentHelper:
 
@@ -51,13 +52,13 @@ class ArgumentHelper:
         comments = ''
         if isinstance(source, str):
             fileobject = open(source, 'r')
-        elif source:
+        elif source is not None:    # Not sure why peekable object returns False
             fileobject = source
         else:
-            fileobject = sys.stdilinen
+            fileobject = sys.stdin
 
-        while True:
-            if hasattr(fileobject, 'seek'):
+        if hasattr(fileobject, 'seekable') and fileobject.seekable():
+            while True:
                 pos = fileobject.tell()
                 line = fileobject.readline()
                 if line[0] == '#':
@@ -65,8 +66,12 @@ class ArgumentHelper:
                 else:
                     fileobject.seek(pos)
                     break
-            else:
-                peek = fileobject.peek(1)
+        else:
+            if not hasattr(fileobject, 'peek'):
+                raise RuntimeError("Source file object bust be seekable or peekable.")
+
+            while True:
+                peek = fileobject.peek()
                 if peek[0] == '#':
                     comments += next(fileobject)
                 else:
