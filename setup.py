@@ -9,7 +9,7 @@ setup(
     description = "Automates logfile and self-describing output file generation; provides Make-like functionality to re-run a script.",
     long_description=readme(),
     long_description_content_type = "text/x-rst",
-    version = "0.1",
+    version = "0.1.1",
     author = "Jonathan Schultz",
     author_email = "jonathan@schultz.la",
     license = "GPL3",
