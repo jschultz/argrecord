@@ -178,8 +178,9 @@ class ArgumentReplay():
 
     headregexp = re.compile(r"^#+(?:\s+(?P<file>.+)\s+)?#+$", re.UNICODE)
     cmdregexp  = re.compile(r"^#\s+(?P<cmd>[\S]+)", re.UNICODE)
-    argregexp  = re.compile(r"^#(?P<dependency>[<> ])\s*(?P<option_string>-[\w-]*)?(?:\s*(?P<quote>\"?)(?P<value>.+)(?P=quote))?", re.UNICODE)
-    substexp   = re.compile(r"(\$\{?(\w+)\}?)", re.UNICODE)
+    argregexp  = re.compile(r"^#(?P<dependency>[<> ])\s*(?P<option_string>-[\w-]*)?(?:\s*(?P<quote>\"?)(?P<value>.+?)(?P<closequote>\"?))?$", re.UNICODE | re.DOTALL)
+
+    substexp   = re.compile(r"(\$\{(\w+)\})", re.UNICODE)
 
     def __init__(self, source, substitute=None):
         self.command = []
@@ -196,6 +197,7 @@ class ArgumentReplay():
         line = next(fileobject, None)
         if not line:
             return
+
         headmatch = ArgumentReplay.headregexp.match(line)
         if headmatch:
             line = next(fileobject, None)
@@ -207,11 +209,18 @@ class ArgumentReplay():
 
         while True:
             line = next(fileobject, None)
+            if not line:
+                break
 
-            argmatch = ArgumentReplay.argregexp.match(line) if line else None
+            argmatch = ArgumentReplay.argregexp.match(line)
             if not argmatch:
                 break
             else:
+                if argmatch.group('quote') == '\"':
+                    while argmatch.group('closequote') != argmatch.group('quote'):
+                        line += next(fileobject, None)
+                        argmatch = ArgumentReplay.argregexp.match(line)
+
                 dependency = argmatch.group('dependency')
                 option_string  = argmatch.group('option_string')
                 value = argmatch.group('value')
