@@ -44,7 +44,7 @@ Run the script ``argreplay`` to re-run the commands that produced a logfile (or 
 
 Pipes
 .....
-If ``argreplay`` encounters a recipe with no input file(s), it assumes that the input was a pipe from the following recipe, and treats the two recipes together as a single entity. Arbitrarily many commands may be piped together in this way.
+``argreplay`` has some special features that allow it to replay sequences of commands in which the output of one is piped to the input of the next. When recording script arguments, if it encounters an input argument (one that was flagged with ``input``) but no argument value, it assumes that the input came from standard input. Likewise for output arguments and standard output. When replaying a sequence in which a command writing to standard output is followed by one reading from standard input, a pipe is established between those two commands. Such a sequence may be arbitrarily long.
 
 Variable substitution
 .....................

@@ -94,13 +94,25 @@ def main(argstring=None):
         while replay.command:
             pipestack = [replay.command + args.extra_args]
             outputs = replay.outputs
-            while replay.command and replay.inputs == []:
-                replay = ArgumentReplay(infile, args.substitute)
-                if replay.command:
-                    pipestack.append(replay.command + args.extra_args)
-
             inputs = replay.inputs
-            replaystack.append((pipestack, inputs, outputs))
+            while replay.command and replay.inpipe:
+                replay = ArgumentReplay(infile, args.substitute)
+                inputs = replay.inputs
+                if replay.command:
+                    if replay.outpipe:
+                        pipestack.append(replay.command + args.extra_args)
+                    else:
+                        # This corner case is a bit messy
+                        replaystack.append((pipestack, inputs, outputs))
+                        pipestack = None
+                        break
+
+            if pipestack:
+                replaystack.append((pipestack, inputs, outputs))
+            else:
+                pipestack = [replay.command + args.extra_args]
+                outputs = replay.outputs
+                inputs = replay.inputs
 
             curdepth += 1
             if args.depth and curdepth >= args.depth:
@@ -126,6 +138,8 @@ def main(argstring=None):
                     os.args.remove(infilename)
 
                 process = None
+                if (args.verbosity or 1) >= 2:
+                    print ("Piping: ", str(len(pipestack)), " commands:", file=sys.stderr)
                 while len(pipestack):
                     command = pipestack.pop()
 

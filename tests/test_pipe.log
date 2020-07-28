@@ -1,0 +1,6 @@
+################################################################################
+#< /home/jschultz/src/argrecord/tests/copy.py
+#>   --output_file "out.txt"
+################################################################################
+#> /home/jschultz/src/argrecord/tests/copy.py
+#<   "in.txt"

@@ -98,7 +98,19 @@ class ArgumentRecorder(argparse.ArgumentParser):
 
     def build_comments(self, args, outfile=None):
         comments = ArgumentHelper.separator(outfile)
-        comments += '# ' + self.prog + '\n'
+        
+        inpipe = False
+        outpipe = False
+        for argname, argval in vars(args).items():
+            if argval is None:
+                action = next((action for action in self._actions if action.dest == argname), None)
+                if action:
+                    if action.input:
+                        inpipe = True
+                    if action.output:
+                        outpipe = True
+                        
+        comments += '#' + ('<' if inpipe else '') + ('>' if outpipe else '') + ' ' + self.prog + '\n'
         for argname, argval in vars(args).items():
             action = next((action for action in self._actions if action.dest == argname), None)
             if action and not action.private:
@@ -177,13 +189,15 @@ class ArgumentRecorder(argparse.ArgumentParser):
 class ArgumentReplay():
 
     headregexp = re.compile(r"^#+(?:\s+(?P<file>.+)\s+)?#+$", re.UNICODE)
-    cmdregexp  = re.compile(r"^#\s+(?P<cmd>[\S]+)", re.UNICODE)
+    cmdregexp  = re.compile(r"^#(?P<inpipe>\<?)(?P<outpipe>\>?)\s+(?P<cmd>[\S]+)", re.UNICODE)
     argregexp  = re.compile(r"^#(?P<dependency>[<> ])\s*(?P<option_string>-[\w-]*)?(?:\s*(?P<quote>\"?)(?P<value>.+?)(?P<closequote>\"?))?$", re.UNICODE | re.DOTALL)
 
     substexp   = re.compile(r"(\$\{(\w+)\})", re.UNICODE)
 
     def __init__(self, source, substitute=None):
         self.command = []
+        self.inpipe = False
+        self.outpipe = False
         self.inputs = []
         self.outputs = []
 
@@ -204,6 +218,8 @@ class ArgumentReplay():
         cmdmatch = ArgumentReplay.cmdregexp.match(line)
         if cmdmatch:
             self.command = [cmdmatch.group('cmd')]
+            self.inpipe = cmdmatch.group('inpipe') == '<'
+            self.outpipe = cmdmatch.group('outpipe') == '>'
         else:
             raise RuntimeError("Unrecognised input line: " + line)
 
