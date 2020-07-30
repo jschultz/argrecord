@@ -228,7 +228,7 @@ class ArgumentReplay():
             if not line:
                 break
 
-            argmatch = ArgumentReplay.argregexp.match(line)
+            argmatch = ArgumentReplay.argregexp.match(line.rstrip('\n'))
             if not argmatch:
                 break
             else:
