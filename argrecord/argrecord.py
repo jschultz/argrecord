@@ -213,8 +213,10 @@ class ArgumentReplay():
             return
 
         headmatch = ArgumentReplay.headregexp.match(line)
-        if headmatch:
-            line = next(fileobject, None)
+        if not headmatch:
+            return
+
+        line = next(fileobject, None)
         cmdmatch = ArgumentReplay.cmdregexp.match(line)
         if cmdmatch:
             self.command = [cmdmatch.group('cmd')]
