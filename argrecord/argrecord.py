@@ -127,12 +127,15 @@ class ArgumentRecorder(argparse.ArgumentParser):
                     if argval:
                         comments += prefix + argspec + '\n'
                 elif type(argval) == list:
-                    for valitem in argval:
-                        if type(valitem) == str:
-                            comments += prefix + argspec + ' "' + valitem + '"\n'
-                        else:
-                            comments += prefix + argspec + ' ' + str(valitem) + '\n'
-                        argspec = ' ' * len(argspec)
+                    if argval:
+                        for valitem in argval:
+                            if type(valitem) == str:
+                                comments += prefix + argspec + ' "' + valitem + '"\n'
+                            else:
+                                comments += prefix + argspec + ' ' + str(valitem) + '\n'
+                            argspec = ' ' * len(argspec)
+                    else:
+                        comments += prefix + argspec + '\n'
                 elif argval is not None:
                     comments += prefix + argspec + ' ' + str(argval) + '\n'
 
