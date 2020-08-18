@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-from argrecord import ArgumentReplay, ArgumentHelper
+from argrecord import ArgumentRecorder, ArgumentReplay, ArgumentHelper
 import os
 import sys
 import re
@@ -52,9 +52,10 @@ def add_arguments(parser):
     replaygroup.add_argument('-f', '--force',   action='store_true', help='Replay even if input file is not older than its dependents.')
     replaygroup.add_argument(      '--dry-run', action='store_true', help='Print but do not execute command')
     replaygroup.add_argument(      '--substitute', nargs='*', type=str, help='List of variable:value pairs for substitution')
+    replaygroup.add_argument(      '--logfile',               type=str, help="Logfile for argreplay", private=True)
 
     advancedgroup = parser.add_argument_group('Advanced')
-    advancedgroup.add_argument('-v', '--verbosity', type=int)
+    advancedgroup.add_argument('-v', '--verbosity', type=int, private=True)
     advancedgroup.add_argument('-d', '--depth',     type=int, help='Depth of command history to replay, default is all.')
     advancedgroup.add_argument('-r', '--remove',   action='store_true', help='Remove file before replaying.')
 
@@ -67,11 +68,17 @@ if gui:
         return args
 else:
     def parse_arguments(argstring):
-        parser = argparse.ArgumentParser()
+        parser = ArgumentRecorder()
         add_arguments(parser)
         args, extra_args = parser.parse_known_args(argstring)
         if '--ignore-gooey' in extra_args:   # Gooey adds '--ignore-gooey' when it calls the command
             extra_args.remove('--ignore-gooey')
+
+        if args.logfile:
+            logfile = open(args.logfile, 'w')
+            parser.write_comments(args, logfile, incomments=ArgumentHelper.separator())
+            logfile.close()
+
         args.extra_args = extra_args
         args.substitute = { sub.split(':')[0]: sub.split(':')[1] for sub in args.substitute } if args.substitute else {}
         return args

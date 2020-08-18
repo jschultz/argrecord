@@ -95,6 +95,9 @@ class ArgumentRecorder(argparse.ArgumentParser):
         action.private = private
         action.input = input
         action.output = output
+        
+    def add_argument_group(self, *args, **kwargs):
+        return(_ArgumentGroup(super().add_argument_group(*args, **kwargs)))
 
     def build_comments(self, args, outfile=None):
         comments = ArgumentHelper.separator(outfile)
@@ -188,6 +191,17 @@ class ArgumentRecorder(argparse.ArgumentParser):
         latestinputtime    = ArgumentHelper.latest_timestamp  ([argsdict.get(action.dest) for action in self._actions if action.input])
 
         return latestinputtime is not None and ((not earliestoutputtime) or latestinputtime > earliestoutputtime)
+
+class _ArgumentGroup(argparse._ArgumentGroup):
+
+    def add_argument(self, *args, **kwargs):
+        private = kwargs.pop('private', False)
+        output = kwargs.pop('output', False)
+        input = kwargs.pop('input', False)
+        action = super().add_argument(*args, **kwargs)
+        action.private = private
+        action.input = input
+        action.output = output
 
 class ArgumentReplay():
 
