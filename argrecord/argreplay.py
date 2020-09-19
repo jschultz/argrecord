@@ -51,13 +51,13 @@ def add_arguments(parser):
 
     replaygroup.add_argument('-f', '--force',   action='store_true', help='Replay even if input file is not older than its dependents.')
     replaygroup.add_argument(      '--dry-run', action='store_true', help='Print but do not execute command')
-    replaygroup.add_argument(      '--substitute', nargs='*', type=str, help='List of variable:value pairs for substitution')
+    replaygroup.add_argument(      '--substitute', nargs='+', type=str, help='List of variable:value pairs for substitution')
     replaygroup.add_argument(      '--logfile',               type=str, help="Logfile for argreplay", private=True)
 
     advancedgroup = parser.add_argument_group('Advanced')
     advancedgroup.add_argument('-v', '--verbosity', type=int, private=True)
     advancedgroup.add_argument('-d', '--depth',     type=int, help='Depth of command history to replay, default is all.')
-    advancedgroup.add_argument('-r', '--remove',   action='store_true', help='Remove file before replaying.')
+    advancedgroup.add_argument('-r', '--remove',   action='store_true', help='Remove input file before replaying.')
 
 if gui:
     @gooey.Gooey(optional_cols=1, tabbed_groups=True)
@@ -138,7 +138,7 @@ def main(argstring=None):
             if not execute:
                 latestinput    = ArgumentHelper.latest_timestamp(inputs)
                 earliestoutput = ArgumentHelper.earliest_timestamp(outputs)
-                execute = latestinput is not None and ((not earliestoutput) or latestinput > earliestoutput)
+                execute = (not latestinput) or (not earliestoutput) or (latestinput > earliestoutput)
 
             if execute:
                 if args.remove:
