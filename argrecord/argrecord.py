@@ -139,6 +139,8 @@ class ArgumentRecorder(argparse.ArgumentParser):
                             argspec = ' ' * len(argspec)
                     else:
                         comments += prefix + argspec + '\n'
+                elif isinstance(argval, io.IOBase):
+                    comments += prefix + argspec + ' "' + argval.name + '"\n'
                 elif argval is not None:
                     comments += prefix + argspec + ' ' + str(argval) + '\n'
 
@@ -270,7 +272,7 @@ class ArgumentReplay():
                         subname = sub[1]
                         subval = substitute.get(subname)
                         if subval is None:
-                            raise RuntimeError("Mising substitution: " + subname)
+                            raise RuntimeError("Missing substitution: " + subname)
 
                         value = value.replace(sub[0], subval)
 
