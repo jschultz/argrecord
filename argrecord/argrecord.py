@@ -97,7 +97,9 @@ class ArgumentRecorder(argparse.ArgumentParser):
         action.output = output
         
     def add_argument_group(self, *args, **kwargs):
-        return(_ArgumentGroup(super().add_argument_group(*args, **kwargs)))
+        argument_group = super().add_argument_group(*args, **kwargs)
+        argument_group.__class__ = _ArgumentGroup
+        return(argument_group)
 
     def build_comments(self, args, outfile=None):
         comments = ArgumentHelper.separator(outfile)
