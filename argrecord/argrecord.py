@@ -50,34 +50,41 @@ class ArgumentHelper:
     def read_comments(source):
         comments = ''
         if isinstance(source, str):
-            fileobject = open(source, 'r')
+            if os.path.isfile(source):
+                fileobject = open(source, 'r')
+            else:
+                fileobject = None
         elif source is not None:    # Not sure why peekable object returns False
             fileobject = source
         else:
             fileobject = sys.stdin
 
-        if hasattr(fileobject, 'seekable') and fileobject.seekable():
-            while True:
-                pos = fileobject.tell()
-                line = fileobject.readline()
-                if line[0] == '#':
-                    comments += line
-                else:
-                    fileobject.seek(pos)
-                    break
-        else:
-            if not hasattr(fileobject, 'peek'):
-                raise RuntimeError("Source file object bust be seekable or peekable.")
+        if fileobject:
+            if hasattr(fileobject, 'seekable') and fileobject.seekable():
+                while True:
+                    pos = fileobject.tell()
+                    line = fileobject.readline()
+                    if len(line):
+                        if line[0] == '#':
+                            comments += line
+                        else:
+                            fileobject.seek(pos)
+                            break
+                    else:
+                        break
+            else:
+                if not hasattr(fileobject, 'peek'):
+                    raise RuntimeError("Source file object bust be seekable or peekable.")
 
-            while True:
-                peek = fileobject.peek()
-                if peek[0] == '#':
-                    comments += next(fileobject)
-                else:
-                    break
+                while True:
+                    peek = fileobject.peek()
+                    if peek[0] == '#':
+                        comments += next(fileobject)
+                    else:
+                        break
 
-        if isinstance(source, str):
-            fileobject.close()
+            if isinstance(source, str):
+                fileobject.close()
 
         return comments
 
