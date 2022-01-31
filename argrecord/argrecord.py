@@ -74,7 +74,7 @@ class ArgumentHelper:
                         break
             else:
                 if not hasattr(fileobject, 'peek'):
-                    raise RuntimeError("Source file object bust be seekable or peekable.")
+                    raise RuntimeError("Source file object must be seekable or peekable.")
 
                 while True:
                     peek = fileobject.peek()
@@ -216,6 +216,7 @@ class _ArgumentGroup(argparse._ArgumentGroup):
 
 class ArgumentReplay():
 
+    commentregexp = re.compile(r"^##", re.UNICODE)
     headregexp = re.compile(r"^#+(?:\s+(?P<file>.+)\s+)?#+$", re.UNICODE)
     cmdregexp  = re.compile(r"^#(?P<inpipe>\<?)(?P<outpipe>\>?)\s+(?P<cmd>[\S]+)", re.UNICODE)
     argregexp  = re.compile(r"^#(?P<dependency>[<> ])\s*(?P<option_string>-[\w-]*)?\s*(?:(?P<quote>\"?)(?P<value>.+?)(?P<closequote>\"?))?$", re.UNICODE | re.DOTALL)
@@ -245,12 +246,17 @@ class ArgumentReplay():
             line = next(fileobject, None)
 
         cmdmatch = ArgumentReplay.cmdregexp.match(line)
-        if cmdmatch:
-            self.command = [cmdmatch.group('cmd')]
-            self.inpipe = cmdmatch.group('inpipe') == '<'
-            self.outpipe = cmdmatch.group('outpipe') == '>'
-        else:
-            raise RuntimeError("Unrecognised input line: " + line)
+        while True:
+            if cmdmatch:
+                self.command = [cmdmatch.group('cmd')]
+                self.inpipe = cmdmatch.group('inpipe') == '<'
+                self.outpipe = cmdmatch.group('outpipe') == '>'
+                break
+            else:
+                if not ArgumentReplay.commentregexp.match(line):
+                    raise RuntimeError("Unrecognised input line: " + line)
+
+            line = next(fileobject, None)
 
         while True:
             line = next(fileobject, None)
@@ -259,7 +265,8 @@ class ArgumentReplay():
 
             argmatch = ArgumentReplay.argregexp.match(line.rstrip('\n'))
             if not argmatch:
-                break
+                if ArgumentReplay.headregexp.match(line) or not ArgumentReplay.commentregexp.match(line):
+                    break
             else:
                 if argmatch.group('quote') == '\"':
                     while argmatch.group('closequote') != argmatch.group('quote'):
