@@ -219,7 +219,7 @@ class ArgumentReplay():
     commentregexp = re.compile(r"^##", re.UNICODE)
     headregexp = re.compile(r"^#+(?:\s+(?P<file>.+)\s+)?#+$", re.UNICODE)
     cmdregexp  = re.compile(r"^#(?P<inpipe>\<?)(?P<outpipe>\>?)\s+(?P<cmd>[\S]+)", re.UNICODE)
-    argregexp  = re.compile(r"^#(?P<dependency>[<> ])\s*(?P<option_string>-[\w-]*)?\s*(?:(?P<quote>\"?)(?P<value>[^\"]*)(?P<closequote>\"?))?$", re.UNICODE | re.DOTALL)
+    argregexp  = re.compile(r"^#(?P<dependency>[<> ])\s*(?P<option_string>-[\w-]*)?\s*(?:(?P<quote>\"?)(?P<value>.*?)(?P<closequote>\"?))?$", re.UNICODE | re.DOTALL)
 
     substexp   = re.compile(r"(\$\{(\w+)\})", re.UNICODE)
 
