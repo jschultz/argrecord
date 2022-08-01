@@ -277,6 +277,7 @@ class ArgumentReplay():
                 dependency = argmatch.group('dependency')
                 option_string  = argmatch.group('option_string')
                 value = argmatch.group('value')
+                value = re.sub(r"\\(.)", "\\1", value)
 
                 if value:
                     if dependency == '<':
