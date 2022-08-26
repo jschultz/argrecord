@@ -245,25 +245,21 @@ class ArgumentReplay():
         if headmatch:
             line = next(fileobject, None)
 
-        cmdmatch = ArgumentReplay.cmdregexp.match(line)
-        while True:
+        while line:
+            cmdmatch = ArgumentReplay.cmdregexp.match(line)
             if cmdmatch:
                 self.command = [cmdmatch.group('cmd')]
                 self.inpipe = cmdmatch.group('inpipe') == '<'
                 self.outpipe = cmdmatch.group('outpipe') == '>'
+                line = next(fileobject, None)
                 break
             else:
                 if not ArgumentReplay.commentregexp.match(line):
                     raise RuntimeError("Unrecognised input line: " + line)
 
             line = next(fileobject, None)
-            cmdmatch = ArgumentReplay.cmdregexp.match(line)
 
-        while True:
-            line = next(fileobject, None)
-            if not line:
-                break
-
+        while line:
             argmatch = ArgumentReplay.argregexp.match(line.rstrip('\n'))
             if not argmatch:
                 if ArgumentReplay.headregexp.match(line) or not ArgumentReplay.commentregexp.match(line):
@@ -298,6 +294,8 @@ class ArgumentReplay():
                     self.command.append(option_string)
                 if value:
                     self.command.append(value)
+
+            line = next(fileobject, None)
 
     def earliest_output():
         return ArgumentHelper.earliest_timestamp(self.outputs)

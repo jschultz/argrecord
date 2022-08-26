@@ -51,7 +51,7 @@ def add_arguments(parser):
 
     replaygroup.add_argument('-f', '--force',   action='store_true', help='Replay even if input file is not older than its dependents.')
     replaygroup.add_argument(      '--dry-run', action='store_true', help='Print but do not execute command')
-    replaygroup.add_argument(      '--substitute', nargs='+', type=str, help='List of variable:value pairs for substitution')
+    replaygroup.add_argument('-S', '--substitute', nargs='+', type=str, help='List of variable:value pairs for substitution')
     replaygroup.add_argument(      '--logfile',               type=str, help="Logfile for argreplay", private=True)
 
     advancedgroup = parser.add_argument_group('Advanced')
@@ -68,7 +68,7 @@ if gui:
         return args
 else:
     def parse_arguments(argstring):
-        parser = ArgumentRecorder()
+        parser = ArgumentRecorder(fromfile_prefix_chars='@')
         add_arguments(parser)
         args, extra_args = parser.parse_known_args(argstring)
         if '--ignore-gooey' in extra_args:   # Gooey adds '--ignore-gooey' when it calls the command
