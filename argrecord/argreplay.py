@@ -52,6 +52,7 @@ def add_arguments(parser):
     replaygroup.add_argument('-f', '--force',   action='store_true', help='Replay even if input file is not older than its dependents.')
     replaygroup.add_argument(      '--dry-run', action='store_true', help='Print but do not execute command')
     replaygroup.add_argument('-S', '--substitute', nargs='+', type=str, help='List of variable:value pairs for substitution')
+    replaygroup.add_argument('-D', '--defaults', default='argreplay.def', type=str, help="File containing default substitute values")
     replaygroup.add_argument(      '--logfile',               type=str, help="Logfile for argreplay", private=True)
 
     advancedgroup = parser.add_argument_group('Advanced')
@@ -85,6 +86,14 @@ else:
 
 def main(argstring=None):
     args = parse_arguments(argstring)
+    
+    defaultsubstitute = {}
+    if args.defaults:
+        try:
+            with open(args.defaults, 'r') as defaultsfile:
+                defaultsubstitute = { sub.split(':')[0]: sub.split(':')[1] for sub in defaultsfile.read().splitlines() }
+        except FileNotFoundError:
+            pass
 
     if not isinstance(args.input_file, list):    # Gooey can't handle args.input_file as list
         args.input_file = [args.input_file]
@@ -97,13 +106,13 @@ def main(argstring=None):
 
         curdepth = 0
         replaystack = []
-        replay = ArgumentReplay(infile, args.substitute)
+        replay = ArgumentReplay(infile, defaultsubstitute | args.substitute)
         while replay.command:
             pipestack = [replay.command + args.extra_args]
             outputs = replay.outputs
             inputs = replay.inputs
             while replay.command and replay.inpipe:
-                replay = ArgumentReplay(infile, args.substitute)
+                replay = ArgumentReplay(infile, defaultsubstitute | args.substitute)
                 inputs = replay.inputs
                 if replay.command:
                     if replay.outpipe:
@@ -126,7 +135,7 @@ def main(argstring=None):
                 break
 
             if replay.command:
-                replay = ArgumentReplay(infile, args.substitute)
+                replay = ArgumentReplay(infile, defaultsubstitute | args.substitute)
 
         if replaystack:
             (pipestack, inputs, outputs) = replaystack.pop()
