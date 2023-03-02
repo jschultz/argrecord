@@ -56,7 +56,7 @@ def add_arguments(parser):
     replaygroup.add_argument(      '--logfile',               type=str, help="Logfile for argreplay", private=True)
 
     advancedgroup = parser.add_argument_group('Advanced')
-    advancedgroup.add_argument('-v', '--verbosity', type=int, private=True)
+    advancedgroup.add_argument('-v', '--verbosity', type=int, default=1, private=True)
     advancedgroup.add_argument('-d', '--depth',     type=int, help='Depth of command history to replay, default is all.')
     advancedgroup.add_argument('-r', '--remove',   action='store_true', help='Remove input file before replaying.')
 
@@ -99,7 +99,7 @@ def main(argstring=None):
         args.input_file = [args.input_file]
 
     for infilename in args.input_file:
-        if (args.verbosity or 1) >= 1:
+        if args.verbosity >= 1:
             print("Replaying " + infilename, file=sys.stderr)
 
         infile = open(infilename, 'r')
@@ -154,12 +154,12 @@ def main(argstring=None):
                     os.args.remove(infilename)
 
                 process = None
-                if (args.verbosity or 1) >= 2:
+                if args.verbosity >= 2:
                     print ("Piping: ", str(len(pipestack)), " commands:", file=sys.stderr)
                 while len(pipestack):
                     command = pipestack.pop()
 
-                    if (args.verbosity or 1) >= 1:
+                    if args.verbosity >= 1:
                         print("Executing: " + ' '.join([item if ' ' not in item else '"' + item + '"' for item in command]), file=sys.stderr)
 
                     if not args.dry_run:
