@@ -221,7 +221,8 @@ class ArgumentReplay():
     cmdregexp  = re.compile(r"^#(?P<inpipe>\<?)(?P<outpipe>\>?)\s+(?P<cmd>[\S]+)", re.UNICODE)
     argregexp  = re.compile(r"^#(?P<dependency>[<> ])\s*(?P<option_string>-[\w-]*)?\s*(?:(?P<quote>\"?)(?P<value>.*?)(?P<closequote>\"?))?$", re.UNICODE | re.DOTALL)
 
-    substexp   = re.compile(r"(\$\{(\w+)\})", re.UNICODE)
+    substexp   = re.compile(r"(\$\{(?P<name>\w+)(?P<modifier>[^\}]*)?\})", re.UNICODE)
+    replregexp = re.compile(r"^/(?P<replaceall>/)?(?P<pattern>([^/\\]|\\/)+?)/(?P<string>.*)$", re.UNICODE)
 
     def __init__(self, source, substitute=None):
         self.command = []
@@ -253,9 +254,9 @@ class ArgumentReplay():
                 self.outpipe = cmdmatch.group('outpipe') == '>'
                 line = next(fileobject, None)
                 break
-            else:
-                if not ArgumentReplay.commentregexp.match(line):
-                    raise RuntimeError("Unrecognised input line: " + line)
+            elif not ArgumentReplay.commentregexp.match(line):
+                line = None
+                break
 
             line = next(fileobject, None)
 
@@ -281,14 +282,27 @@ class ArgumentReplay():
                     elif dependency == '>':
                         self.outputs.append(value)
 
-                    subs = ArgumentReplay.substexp.findall(value)
+                    subs = ArgumentReplay.substexp.finditer(value)
                     for sub in subs:
-                        subname = sub[1]
+                        subname = sub.group('name')
                         subval = substitute.get(subname)
+                        modifier = sub.group('modifier')
+                        if modifier is not None:
+                            print("Modifier=",modifier)
+                            replace = ArgumentReplay.replregexp.match(modifier)
+                            if replace:
+                                replaceall = replace.group('replaceall')
+                                pattern = replace.group('pattern')
+                                pattern = re.sub(r"\\(.)", "\\1", pattern)
+                                string  = replace.group('string')
+                                string  = re.sub(r"\\(.)", "\\1", string)
+                                
+                                subval = re.sub(pattern, string, subval, count=1 if replaceall else 0)
+
                         if subval is None:
                             raise RuntimeError("Missing substitution: " + subname)
 
-                        value = value.replace(sub[0], subval)
+                        value = value.replace(sub.group(0), subval)
 
                 if option_string:
                     self.command.append(option_string)
