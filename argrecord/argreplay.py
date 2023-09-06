@@ -106,25 +106,24 @@ def main(argstring=None):
 
         curdepth = 0
         replaystack = []
-        replay = ArgumentReplay(infile, defaultsubstitute | args.substitute)
+        replay = ArgumentReplay(infile)
         while replay.command:
             pipestack = [replay.command + args.extra_args]
             outputs = replay.outputs
             inputs = replay.inputs
             while replay.command and replay.inpipe:
-                replay = ArgumentReplay(infile, defaultsubstitute | args.substitute)
+                replay = ArgumentReplay(infile)
                 inputs = replay.inputs
                 if replay.command:
                     if replay.outpipe:
                         pipestack.append(replay.command + args.extra_args)
                     else:
-                        # This corner case is a bit messy
-                        replaystack.append((pipestack, inputs, outputs))
+                        replaystack.append((pipestack, inputs, outputs, replay.outvar))
                         pipestack = None
                         break
 
             if pipestack:
-                replaystack.append((pipestack, inputs, outputs))
+                replaystack.append((pipestack, inputs, outputs, replay.outvar))
             else:
                 pipestack = [replay.command + args.extra_args]
                 outputs = replay.outputs
@@ -135,13 +134,14 @@ def main(argstring=None):
                 break
 
             if replay.command:
-                replay = ArgumentReplay(infile, defaultsubstitute | args.substitute)
+                replay = ArgumentReplay(infile)
 
         if replaystack:
-            (pipestack, inputs, outputs) = replaystack.pop()
+            (pipestack, inputs, outputs, outvar) = replaystack.pop()
         else:
             pipestack = None
 
+        substitute = defaultsubstitute | args.substitute
         while pipestack:
             execute = args.force
             if not execute:
@@ -157,23 +157,49 @@ def main(argstring=None):
                 if args.verbosity >= 2:
                     print ("Piping: ", str(len(pipestack)), " commands:", file=sys.stderr)
                 while len(pipestack):
-                    command = pipestack.pop()
+                    commandraw   = pipestack.pop()
+                    commandready = []
+                    for item in commandraw:
+                        subs = ArgumentReplay.substexp.finditer(item)
+                        for sub in subs:
+                            subname = sub.group('name')
+                            subval = substitute.get(subname)
+                            modifier = sub.group('modifier')
+                            if modifier is not None:
+                                replace = ArgumentReplay.replregexp.match(modifier)
+                                if replace:
+                                    replaceall = replace.group('replaceall')
+                                    pattern = replace.group('pattern')
+                                    pattern = re.sub(r"\\(.)", "\\1", pattern)
+                                    string  = replace.group('string')
+                                    string  = re.sub(r"\\(.)", "\\1", string)
+                                    
+                                    subval = re.sub(pattern, string, subval, count=1 if replaceall else 0)
+
+                            if subval is None:
+                                raise RuntimeError("Missing substitution: " + subname)
+
+                            item = item.replace(sub.group(0), subval)
+                            
+                        commandready.append(item)
 
                     if args.verbosity >= 1:
-                        print("Executing: " + ' '.join([item if ' ' not in item else '"' + item + '"' for item in command]), file=sys.stderr)
+                        print("Executing: " + ' '.join([item if ' ' not in item else '"' + item + '"' for item in commandready]), file=sys.stderr)
 
                     if not args.dry_run:
-                        process = subprocess.Popen(command, text=True,
-                                                   stdout=subprocess.PIPE if len(pipestack) else sys.stdout,
+                        process = subprocess.Popen(commandready, text=True,
+                                                   stdout=subprocess.PIPE if len(pipestack) or outvar else sys.stdout,
                                                    stdin=process.stdout if process else sys.stdin,
                                                    stderr=sys.stderr)
                 if not args.dry_run:
                     process.wait()
+                    if outvar:
+                        substitute[outvar] = process.stdout.read()
                     if process.returncode:
                         raise RuntimeError("Error running script.")
 
             if replaystack:
-                (pipestack, inputs, outputs) = replaystack.pop()
+                (pipestack, inputs, outputs, outvar) = replaystack.pop()
             else:
                 pipestack = None
 

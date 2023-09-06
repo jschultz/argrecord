@@ -113,6 +113,7 @@ class ArgumentRecorder(argparse.ArgumentParser):
         
         inpipe = False
         outpipe = False
+        outvar = False
         for argname, argval in vars(args).items():
             if argval is None:
                 action = next((action for action in self._actions if action.dest == argname), None)
@@ -121,13 +122,15 @@ class ArgumentRecorder(argparse.ArgumentParser):
                         inpipe = True
                     if action.output:
                         outpipe = True
+                    if action.outvar:
+                        outvar = True
                         
-        comments += '#' + ('<' if inpipe else '') + ('>' if outpipe else '') + ' ' + self.prog + '\n'
+        comments += '#' + ('<' if inpipe else '') + ('>' if outpipe else '') + (outvar if outvar else '') + ' ' + self.prog + '\n'
         for argname, argval in vars(args).items():
             action = next((action for action in self._actions if action.dest == argname), None)
             if action and not action.private:
-                if action.option_strings:
-                    argspec = action.option_strings[-1]
+                if action.optionss:
+                    argspec = action.optionss[-1]
                 else:
                     argspec = ''
 
@@ -218,13 +221,13 @@ class ArgumentReplay():
 
     commentregexp = re.compile(r"^##", re.UNICODE)
     headregexp = re.compile(r"^#+(?:\s+(?P<file>.+)\s+)?#+$", re.UNICODE)
-    cmdregexp  = re.compile(r"^#(?P<inpipe>\<?)(?P<outpipe>\>?)\s+(?P<cmd>[\S]+)", re.UNICODE)
-    argregexp  = re.compile(r"^#(?P<dependency>[<> ])\s*(?P<option_string>-[\w-]*)?\s*(?:(?P<quote>\"?)(?P<value>.*?)(?P<closequote>\"?))?$", re.UNICODE | re.DOTALL)
+    cmdregexp  = re.compile(r"^#(?P<inpipe>\<)?(?P<outpipe>\>(?P<outvar>\S+)?)?\s+(?P<cmd>[\S]+)", re.UNICODE)
+    argregexp  = re.compile(r"^#(?P<dependency>[<> ])\s*(?P<options>-[\w-]*)?\s*(?:(?P<quote>\"?)(?P<value>.*?)(?P<closequote>\"?))?$", re.UNICODE | re.DOTALL)
 
     substexp   = re.compile(r"(\$\{(?P<name>\w+)(?P<modifier>[^\}]*)?\})", re.UNICODE)
     replregexp = re.compile(r"^/(?P<replaceall>/)?(?P<pattern>([^/\\]|\\/)+?)/(?P<string>.*)$", re.UNICODE)
 
-    def __init__(self, source, substitute=None):
+    def __init__(self, source):
         self.command = []
         self.inpipe = False
         self.outpipe = False
@@ -250,8 +253,9 @@ class ArgumentReplay():
             cmdmatch = ArgumentReplay.cmdregexp.match(line)
             if cmdmatch:
                 self.command = [cmdmatch.group('cmd')]
-                self.inpipe = cmdmatch.group('inpipe') == '<'
-                self.outpipe = cmdmatch.group('outpipe') == '>'
+                self.inpipe  = cmdmatch.group('inpipe') == '<'
+                self.outvar  = cmdmatch.group('outvar')
+                self.outpipe = cmdmatch.group('outpipe') == '>' and not self.outvar
                 line = next(fileobject, None)
                 break
             elif not ArgumentReplay.commentregexp.match(line):
@@ -272,7 +276,7 @@ class ArgumentReplay():
                         argmatch = ArgumentReplay.argregexp.match(line)
 
                 dependency = argmatch.group('dependency')
-                option_string  = argmatch.group('option_string')
+                options  = argmatch.group('options')
                 value = argmatch.group('value')
                 value = re.sub(r"\\(.)", "\\1", value)
 
@@ -282,30 +286,8 @@ class ArgumentReplay():
                     elif dependency == '>':
                         self.outputs.append(value)
 
-                    subs = ArgumentReplay.substexp.finditer(value)
-                    for sub in subs:
-                        subname = sub.group('name')
-                        subval = substitute.get(subname)
-                        modifier = sub.group('modifier')
-                        if modifier is not None:
-                            print("Modifier=",modifier)
-                            replace = ArgumentReplay.replregexp.match(modifier)
-                            if replace:
-                                replaceall = replace.group('replaceall')
-                                pattern = replace.group('pattern')
-                                pattern = re.sub(r"\\(.)", "\\1", pattern)
-                                string  = replace.group('string')
-                                string  = re.sub(r"\\(.)", "\\1", string)
-                                
-                                subval = re.sub(pattern, string, subval, count=1 if replaceall else 0)
-
-                        if subval is None:
-                            raise RuntimeError("Missing substitution: " + subname)
-
-                        value = value.replace(sub.group(0), subval)
-
-                if option_string:
-                    self.command.append(option_string)
+                if options:
+                    self.command.append(options)
                 if value:
                     self.command.append(value)
 
