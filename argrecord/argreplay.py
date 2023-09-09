@@ -185,6 +185,9 @@ def main(argstring=None):
 
                     if args.verbosity >= 1:
                         print("Executing: " + ' '.join([item if ' ' not in item else '"' + item + '"' for item in commandready]), file=sys.stderr)
+                        if outvar:
+                            print("   Output piped to variable " + outvar, file=sys.stderr)
+
 
                     if not args.dry_run:
                         process = subprocess.Popen(commandready, text=True,
