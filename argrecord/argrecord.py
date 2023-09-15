@@ -102,6 +102,7 @@ class ArgumentRecorder(argparse.ArgumentParser):
         action.private = private
         action.input = input
         action.output = output
+        action.outvar = None
         
     def add_argument_group(self, *args, **kwargs):
         argument_group = super().add_argument_group(*args, **kwargs)
@@ -129,10 +130,8 @@ class ArgumentRecorder(argparse.ArgumentParser):
         for argname, argval in vars(args).items():
             action = next((action for action in self._actions if action.dest == argname), None)
             if action and not action.private:
-                if action.optionss:
-                    argspec = action.optionss[-1]
-                else:
-                    argspec = ''
+                if action.option_strings:
+                    argspec = action.option_strings[-1]
 
                 prefix = '#' + ('<' if action.input else '>' if action.output else ' ') + '   '
 
