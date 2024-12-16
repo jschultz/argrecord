@@ -102,7 +102,20 @@ def main(argstring=None):
         if args.verbosity >= 1:
             print("Replaying " + infilename, file=sys.stderr)
 
-        infile = open(infilename, 'r')
+        path = os.environ['PATH'].split(':')
+        path.insert(0, '')
+        candidate = None
+        for dirname in path:
+            candidate = os.path.join(dirname, infilename)
+            if os.path.isfile(candidate):
+                break
+            else:
+                candidate = None
+
+        if not candidate:
+            raise RuntimeError("File not found: " + infilename)
+
+        infile = open(candidate, 'r')
 
         curdepth = 0
         replaystack = []
@@ -184,7 +197,7 @@ def main(argstring=None):
                         commandready.append(item)
 
                     if args.verbosity >= 1:
-                        print("Executing: " + ' '.join([item if ' ' not in item else '"' + item + '"' for item in commandready]), file=sys.stderr)
+                        print("Executing: " + ' '.join([item if not any(delimiter in item for delimiter in [' ',';']) else '"' + item + '"' for item in commandready]), file=sys.stderr)
                         if outvar:
                             print("   Output piped to variable " + outvar, file=sys.stderr)
 
